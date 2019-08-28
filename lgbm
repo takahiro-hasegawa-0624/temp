@@ -1,0 +1,61 @@
+param={'learning_rate': 0.1,
+        'objective':'mae',
+        'num_leaves': 31,
+        'random_state':42,
+        'bagging_fraction': 0.03,
+        'feature_fraction': 0.85
+       }
+       
+reg = lgb.LGBMRegressor(**param, n_estimators=1000)
+
+reg.fit(X_train, Y_train)
+pred = reg.predict(X_test, num_iteration=reg.best_iteration_)
+
+# Plot feature importance
+feature_importance = reg.feature_importances_
+feature_importance = 100.0 * (feature_importance / feature_importance.max())
+sorted_idx = np.argsort(feature_importance)
+sorted_idx = sorted_idx[len(feature_importance) - 30:]
+pos = np.arange(sorted_idx.shape[0]) + .5
+
+plt.figure(figsize=(12,8))
+plt.barh(pos, feature_importance[sorted_idx], align='center')
+plt.yticks(pos, X_train.columns[sorted_idx])
+plt.xlabel('Relative Importance')
+plt.title('std_Variable Importance_learning rate'+ str(param["learning_rate"]) + '_num leaves' + str(param["num_leaves"]) + '_bagging fraction' + str(param["bagging_fraction"]) + '_feature fraction' + str(param["feature_fraction"]))
+
+dt_now = datetime.datetime.now()
+dt = dt_now.strftime('%m%d%H%M')
+
+plt.savefig(dt+'feature_engineering.png')
+plt.show()
+
+grid_param={'learning_rate': [0.1],
+        'objective':['regression'],
+        'metric':['mae'],
+        'num_leaves': [16383],
+        'verbose': [1],
+        'random_state':[42],
+        'bagging_fraction': [0.03],
+        'feature_fraction': [0.85]
+       }
+
+reg = lgb.LGBMRegressor()
+
+reg_gs_cv = GridSearchCV(
+            reg, # 識別器
+            grid_param, # 最適化したいパラメータセット
+            cv = KFold(n_splits=3, shuffle=True), # 交差検定の回数
+            scoring = 'neg_mean_absolute_error',
+            )
+
+reg_gs_cv.fit(
+            X_train,
+            Y_train,
+            )
+            
+best_param = reg_gs_cv.best_params_
+best_param =pd.DataFrame(list(best_param.items()))
+
+best_score = pd.DataFrame(["best_score", reg_gs_cv.best_score_])
+best_param = pd.concat([best_param, best_score.T])
